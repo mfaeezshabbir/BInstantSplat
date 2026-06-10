@@ -36,11 +36,8 @@ def render(
     """
 
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
-    screenspace_points = (
-        torch.zeros_like(
-            pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda"
-        )
-        + 0
+    screenspace_points = torch.zeros_like(
+        pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda"
     )
     try:
         screenspace_points.retain_grad()
@@ -52,7 +49,7 @@ def render(
     tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
 
     # Set camera pose as identity. Then, we will transform the Gaussians around camera_pose
-    w2c = torch.eye(4).cuda()
+    w2c = torch.eye(4, device="cuda")
     projmatrix = (
         w2c.unsqueeze(0).bmm(viewpoint_camera.projection_matrix.unsqueeze(0))
     ).squeeze(0)
@@ -77,16 +74,11 @@ def render(
 
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
 
-    # means3D = pc.get_xyz
     rel_w2c = get_camera_from_tensor(camera_pose)
-    # Transform mean and rot of Gaussians to camera frame
-    gaussians_xyz = pc._xyz.clone()
-    gaussians_rot = pc._rotation.clone()
-
-    xyz_ones = torch.ones(gaussians_xyz.shape[0], 1).cuda().float()
-    xyz_homo = torch.cat((gaussians_xyz, xyz_ones), dim=1)
+    xyz_ones = torch.ones(pc._xyz.shape[0], 1, device="cuda")
+    xyz_homo = torch.cat((pc._xyz, xyz_ones), dim=1)
     gaussians_xyz_trans = (rel_w2c @ xyz_homo.T).T[:, :3]
-    gaussians_rot_trans = quadmultiply(camera_pose[:4], gaussians_rot)
+    gaussians_rot_trans = quadmultiply(camera_pose[:4], pc._rotation)
     means3D = gaussians_xyz_trans
     means2D = screenspace_points
     opacity = pc.get_opacity

@@ -57,16 +57,19 @@ def evaluate(args):
                 out_f = open(method_dir / 'metrics.txt', 'w') 
                 gt_dir = method_dir/ "gt"
                 renders_dir = method_dir / "renders"
-                renders, gts, image_names = readImages(renders_dir, gt_dir)
+                renders_pil, gts_pil, image_names = readImages(renders_dir, gt_dir)
 
                 ssims = []
                 psnrs = []
                 lpipss = []
 
-                for idx in tqdm(range(len(renders)), desc="Metric evaluation progress"):
-                    s=ssim(renders[idx], gts[idx])
-                    p=psnr(renders[idx], gts[idx])
-                    l=lpips(renders[idx], gts[idx], net_type='vgg')
+                for idx in tqdm(range(len(renders_pil)), desc="Metric evaluation progress"):
+                    render = tf.to_tensor(renders_pil[idx]).unsqueeze(0)[:, :3, :, :].cuda()
+                    gt = tf.to_tensor(gts_pil[idx]).unsqueeze(0)[:, :3, :, :].cuda()
+                    s=ssim(render, gt)
+                    p=psnr(render, gt)
+                    l=lpips(render, gt, net_type='vgg')
+                    del render, gt
                     out_f.write(f"image name{image_names[idx]}, image idx: {idx}, PSNR: {p.item():.2f}, SSIM: {s:.4f}, LPIPS: {l.item():.4f}\n")
                     ssims.append(s)
                     psnrs.append(p)

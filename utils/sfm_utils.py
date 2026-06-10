@@ -456,8 +456,8 @@ def readImages(renders_dir, gt_dir):
     for fname in os.listdir(renders_dir):
         render = PIL.Image.open(renders_dir / fname)
         gt = PIL.Image.open(gt_dir / fname)
-        renders.append(tf.to_tensor(render).unsqueeze(0)[:, :3, :, :].cuda())
-        gts.append(tf.to_tensor(gt).unsqueeze(0)[:, :3, :, :].cuda())
+        renders.append(render)
+        gts.append(gt)
         image_names.append(fname)
     return renders, gts, image_names
 

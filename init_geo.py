@@ -57,6 +57,10 @@ def main(source_path, model_path, ckpt_path, device, batch_size, image_size, sch
     depthmaps = to_numpy(scene.im_depthmaps.detach().cpu().numpy())
     values = [param.detach().cpu().numpy() for param in scene.im_conf]
     confs = np.array(values)
+
+    # Free GPU memory from model and scene after extracting data to CPU
+    del model, scene, output
+    torch.cuda.empty_cache()
     
     if conf_aware_ranking:
         print(f'>> Confiden-aware Ranking...')

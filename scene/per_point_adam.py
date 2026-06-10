@@ -23,12 +23,11 @@ class PerPointAdam(Optimizer):
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, per_point_lr=None)
         super().__init__(params, defaults)
 
-    def _adjust_per_point_lr(self, per_point_lr, grad, mask):
+    def _adjust_per_point_lr(self, per_point_lr, grad):
         """Adjusts per-point learning rates based on gradient magnitudes."""
         grad_magnitude = grad.norm(dim=-1)
-        scaling_factor = torch.ones_like(grad_magnitude)
-        grad_sigmoid = torch.sigmoid(grad_magnitude[mask])
-        scaling_factor[mask] = 0.99 + (grad_sigmoid * 0.02)
+        grad_sigmoid = torch.sigmoid(grad_magnitude)
+        scaling_factor = 0.99 + (grad_sigmoid * 0.02)
         return per_point_lr * scaling_factor.unsqueeze(1)
 
     def step(self, closure=None):
@@ -62,15 +61,9 @@ class PerPointAdam(Optimizer):
                 if group['weight_decay'] != 0:
                     grad = grad.add(p.data, alpha=group['weight_decay'])
 
-                # Compute mask for non-zero gradients
-                grad_norm = grad.norm()
-                mask = grad_norm > 0
-
                 # Update momentum terms
-                exp_avg.masked_scatter_(mask, 
-                    exp_avg[mask].mul_(beta1).add_(grad[mask], alpha=1 - beta1))
-                exp_avg_sq.masked_scatter_(mask,
-                    exp_avg_sq[mask].mul_(beta2).addcmul_(grad[mask], grad[mask], value=1 - beta2))
+                exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
+                exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
 
                 # Compute bias corrections
                 bias_correction1 = 1 - beta1 ** state['step']
@@ -93,7 +86,7 @@ class PerPointAdam(Optimizer):
 
                     scaled_step_size = step_size * per_point_lr
                     p.data.add_(-scaled_step_size * (exp_avg / denom))
-                    per_point_lr = self._adjust_per_point_lr(per_point_lr, grad, mask)
+                    per_point_lr = self._adjust_per_point_lr(per_point_lr, grad)
                 else:
                     p.data.addcdiv_(exp_avg, denom, value=-step_size)
 
