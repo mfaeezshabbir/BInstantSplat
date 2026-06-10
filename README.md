@@ -33,6 +33,17 @@ https://github.com/zhiwenfan/zhiwenfan.github.io/assets/34684115/748ae0de-8186-4
 - [ ] Long sequence cross window alignment
 - [ ] Support Mip-Splatting
 
+## BInstantSplat Changes (Memory Efficiency Refactor)
+This fork introduces several memory optimizations over the original InstantSplat:
+
+- **Removed redundant GPU transfers**: Training no longer calls `.cuda()` every iteration on already-GPU-resident images, eliminating a steady memory leak during training.
+- **Eliminated unnecessary clones**: The rasterizer no longer clones `_xyz` and `_rotation` tensors on every render call.
+- **`PerPointAdam` bugfix**: Fixed optimizer mask computation (was using scalar total-norm instead of per-element gradient check; replaced broken `masked_scatter_` with standard Adam momentum updates).
+- **Lazy GPU evaluation**: `readImages` now returns CPU PIL images; GPU transfer happens one image at a time and memory is freed after each metric computation.
+- **Reduced intermediate tensors**: Consolidated chained `tensor().float().cuda()` patterns into single `tensor(dtype, device)` calls.
+- **`torch.no_grad()` in validation**: Wrapped validation renders to avoid computation graph buildup.
+- **Early model cleanup**: MASt3R model is freed from GPU memory after geometry initialization.
+
 ## Get Started
 
 ### Installation
