@@ -40,7 +40,7 @@ def main(source_path, model_path, ckpt_path, device, batch_size, image_size, sch
 
     start_time = time()
     print(f'>> Making pairs...')
-    pairs = make_pairs(images, scene_graph='complete', prefilter=None, symmetrize=True)
+    pairs = make_pairs(images, scene_graph='swin-2', prefilter=None, symmetrize=True)
     print(f'>> Inference...')
     output = inference(pairs, model, device, batch_size=1, verbose=True)
     # Model no longer needed after inference
@@ -50,7 +50,7 @@ def main(source_path, model_path, ckpt_path, device, batch_size, image_size, sch
     print(f'>> Global alignment...')
     scene = global_aligner(output, device=args.device, mode=GlobalAlignerMode.PointCloudOptimizer)
     del output
-    loss = scene.compute_global_alignment(init="mst", niter=300, schedule=schedule, lr=lr, focal_avg=args.focal_avg)
+    loss = scene.compute_global_alignment(init="mst", niter=niter, schedule=schedule, lr=lr, focal_avg=args.focal_avg)
 
     # Extract scene information (free each GPU tensor right after use)
     extrinsics_w2c = inv(to_numpy(scene.get_im_poses()))
