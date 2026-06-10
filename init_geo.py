@@ -43,24 +43,30 @@ def main(source_path, model_path, ckpt_path, device, batch_size, image_size, sch
     pairs = make_pairs(images, scene_graph='complete', prefilter=None, symmetrize=True)
     print(f'>> Inference...')
     output = inference(pairs, model, device, batch_size=1, verbose=True)
+    # Model no longer needed after inference
+    del model
+    torch.cuda.empty_cache()
+
     print(f'>> Global alignment...')
     scene = global_aligner(output, device=args.device, mode=GlobalAlignerMode.PointCloudOptimizer)
+    del output
     loss = scene.compute_global_alignment(init="mst", niter=300, schedule=schedule, lr=lr, focal_avg=args.focal_avg)
 
-    # Extract scene information
+    # Extract scene information (free each GPU tensor right after use)
     extrinsics_w2c = inv(to_numpy(scene.get_im_poses()))
     intrinsics = to_numpy(scene.get_intrinsics())
     focals = to_numpy(scene.get_focals())
     imgs = np.array(scene.imgs)
+    scene.imgs = None
     pts3d = to_numpy(scene.get_pts3d())
-    pts3d = np.array(pts3d)
-    depthmaps = to_numpy(scene.im_depthmaps.detach().cpu().numpy())
-    values = [param.detach().cpu().numpy() for param in scene.im_conf]
-    confs = np.array(values)
-
-    # Free GPU memory from model and scene after extracting data to CPU
-    del model, scene, output
+    scene._pts3d = None
+    depthmaps = to_numpy(scene.im_depthmaps)
+    scene.im_depthmaps = None
+    confs = np.array([param.cpu().numpy() for param in scene.im_conf])
+    scene.im_conf = None
     torch.cuda.empty_cache()
+
+    del scene
     
     if conf_aware_ranking:
         print(f'>> Confiden-aware Ranking...')
